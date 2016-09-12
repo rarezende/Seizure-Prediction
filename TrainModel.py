@@ -1,67 +1,69 @@
+# -------------------------------------------------------------------------------------- #
+# Create submission file
+# -------------------------------------------------------------------------------------- #
 import pandas as pd
-from sklearn import cross_validation
 from sklearn.ensemble import RandomForestClassifier 
-from sklearn.metrics import confusion_matrix
 
 rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
 
-forest = RandomForestClassifier(n_estimators = 300)
+dataSet1 = {"Train File": "train_1.csv", "Test File": "test_1.csv"}
+dataSet2 = {"Train File": "train_2.csv", "Test File": "test_2.csv"}
+dataSet3 = {"Train File": "train_3.csv", "Test File": "test_3.csv"}
 
-# Data set 1
-fileName = "train_1.csv"
-trainData = pd.read_csv(rootDir + fileName, index_col=0)
-X_train = trainData.loc[:, "Feature1":"Feature32"].values
-y_train = trainData.loc[:, "Class"].values
+dataSets = [dataSet1, dataSet2, dataSet3]
+lastFeature = "Feature384"
+submission = pd.DataFrame(columns = ["File", "Class"])
 
-fileName = "test_1.csv"
-testData = pd.read_csv(rootDir + fileName, index_col=0)
-X_test  = testData.loc[:, "Feature1":"Feature32"].values
+for dataSet in dataSets:
+    fileName = dataSet["Train File"]
+    trainData = pd.read_csv(rootDir + fileName, index_col=0)
+    X_train = trainData.loc[:, "Feature1":lastFeature].values
+    y_train = trainData.loc[:, "Class"].values
 
-forest = forest.fit(X_train, y_train)
-y_pred = forest.predict(X_test)
-submission1 = pd.DataFrame(testData["File"])
-submission1["Class"] = y_pred
+    fileName = dataSet["Test File"]
+    testData = pd.read_csv(rootDir + fileName, index_col=0)
+    X_test  = testData.loc[:, "Feature1":lastFeature].values
 
-# Data set 2
-fileName = "train_2.csv"
-trainData = pd.read_csv(rootDir + fileName, index_col=0)
-X_train = trainData.loc[:, "Feature1":"Feature32"].values
-y_train = trainData.loc[:, "Class"].values
-
-fileName = "test_2.csv"
-testData = pd.read_csv(rootDir + fileName, index_col=0)
-X_test  = testData.loc[:, "Feature1":"Feature32"].values
-
-forest = forest.fit(X_train, y_train)
-y_pred = forest.predict(X_test)
-submission2 = pd.DataFrame(testData["File"])
-submission2["Class"] = y_pred
-
-# Data set 3
-fileName = "train_3.csv"
-trainData = pd.read_csv(rootDir + fileName, index_col=0)
-X_train = trainData.loc[:, "Feature1":"Feature32"].values
-y_train = trainData.loc[:, "Class"].values
-
-fileName = "test_3.csv"
-testData = pd.read_csv(rootDir + fileName, index_col=0)
-X_test  = testData.loc[:, "Feature1":"Feature32"].values
-
-forest = forest.fit(X_train, y_train)
-y_pred = forest.predict(X_test)
-submission3 = pd.DataFrame(testData["File"])
-submission3["Class"] = y_pred
-
-submission = pd.concat([submission1, submission2, submission3])
+    forest = RandomForestClassifier(n_estimators = 100)
+    forest = forest.fit(X_train, y_train)
+    y_pred = forest.predict(X_test)
+    partialSub = pd.DataFrame(testData["File"])
+    partialSub["Class"] = y_pred
+    
+    submission = pd.concat([submission, partialSub])
 
 submission.to_csv(rootDir + "submission.csv", index = False)
 
-#X_train, X_test, y_train, y_test = cross_validation.train_test_split(trainData.loc[:, "Feature1":"Feature32"].values, 
-#                                                                     trainData.loc[:, "Class"].values, 
-#                                                                     test_size=0.3, 
-#                                                                     random_state=0)
 
-#cm = confusion_matrix(y_test, y_pred)
+# -------------------------------------------------------------------------------------- #
+# Cross Validation
+# -------------------------------------------------------------------------------------- #
+from sklearn import cross_validation
+from sklearn.metrics import confusion_matrix
+from sklearn.ensemble import RandomForestClassifier 
+
+rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
+lastFeature = "Feature384"
+
+fileName = "train_2.csv"
+trainData = pd.read_csv(rootDir + fileName, index_col=0)
+
+X_train, X_test, y_train, y_test = cross_validation.train_test_split(trainData.loc[:, "Feature1":lastFeature].values,
+                                                                     trainData.loc[:, "Class"].values, 
+                                                                     test_size=0.3, 
+                                                                     random_state=31415)
+
+forest = RandomForestClassifier(n_estimators = 100)
+forest = forest.fit(X_train, y_train)
+y_pred = forest.predict(X_test)
+
+cm = confusion_matrix(y_test, y_pred)
+
+precision = cm[1,1]/(cm[0,1] + cm[1,1])
+recall = cm[1,1]/(cm[0,1] + cm[1,0])
+
+Fscore = 
+
 
 
 
