@@ -1,25 +1,21 @@
-import os
-import scipy.io as sio
-import pandas as pd
-import numpy as np
-import scipy.signal as signal
-
-
-# -------------------------------------------------------------------------------------- #
-# Create feature files
-# -------------------------------------------------------------------------------------- #
 rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
 
 sourceType = "Train"
 sourcePath = rootDir + "Data1/train_1/"
 destFile = rootDir + "train_1.csv"
 
-sourceType = "Test"
-sourcePath = rootDir + "Data1/test_1/"
-destFile = rootDir + "test_1.csv"
+#sourceType = "Test"
+#sourcePath = rootDir + "Data1/test_1/"
+#destFile = rootDir + "test_1.csv"
 
+# -------------------------------------------------------------------------------------- #
+# Create feature files
+# -------------------------------------------------------------------------------------- #
 def create_features_file(sourcePath, sourceType, destFile):
     import time
+    import os
+    import scipy.io as sio
+    import pandas as pd
     
     startTime = time.time()
 
@@ -72,6 +68,8 @@ def create_features_file(sourcePath, sourceType, destFile):
 # -------------------------------------------------------------------------------------- #
 def generate_features(eegData, samplingRate, timeWindows, freqBands):
 
+    import scipy.signal as signal
+    import numpy as np
     from IPython.core.debugger import Tracer; dbg_breakpoint = Tracer()
     
     numChannels = eegData.shape[1]
