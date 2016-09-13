@@ -1,35 +1,68 @@
-rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
-
-sourceType = "Train"
-sourcePath = rootDir + "Data1/train_1/"
-destFile = rootDir + "train_1.csv"
-
-#sourceType = "Test"
-#sourcePath = rootDir + "Data1/test_1/"
-#destFile = rootDir + "test_1.csv"
-
 # -------------------------------------------------------------------------------------- #
-# Create feature files
+# Create all training and test files
 # -------------------------------------------------------------------------------------- #
-def create_features_file(sourcePath, sourceType, destFile):
+def create_all_files():
     import time
+    import pandas as pd
+
+    startTime = time.time()
+
+    dataSet1 = {"Type": "Train", "Source": "Data1/train_1/", "Output Name": "train_1.csv"}
+    dataSet2 = {"Type": "Train", "Source": "Data2/train_2/", "Output Name": "train_2.csv"}
+    dataSet3 = {"Type": "Train", "Source": "Data3/train_3/", "Output Name": "train_3.csv"}
+    dataSet4 = {"Type": "Test" , "Source": "Data1/test_1/" , "Output Name": "test_1.csv"}
+    dataSet5 = {"Type": "Test" , "Source": "Data2/test_2/" , "Output Name": "test_2.csv"}
+    dataSet6 = {"Type": "Test" , "Source": "Data3/test_3/" , "Output Name": "test_3.csv"}
+    
+    dataSets = [dataSet1, dataSet2, dataSet3, dataSet4, dataSet5, dataSet6]
+    rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
+
+    for dataSet in dataSets:
+        sourceType = dataSet["Type"]
+        sourcePath = rootDir + dataSet["Source"]
+        destFile = rootDir + dataSet["Output Name"]
+        print("Creating file {}".format(dataSet["Output Name"]))
+        features = create_features_dataframe(sourcePath, sourceType)
+        features.to_csv(destFile, index = False)
+
+    print("Creating file {}".format("train_all.csv"))
+    train_1 = pd.read_csv(rootDir + "train_1.csv")           
+    train_2 = pd.read_csv(rootDir + "train_2.csv")           
+    train_3 = pd.read_csv(rootDir + "train_3.csv")           
+    train_all = pd.concat([train_1, train_2, train_3])
+    train_all.to_csv(rootDir + "train_all.csv", index = False)
+
+    print("Creating file {}".format("test_all.csv"))
+    test_1 = pd.read_csv(rootDir + "test_1.csv")           
+    test_2 = pd.read_csv(rootDir + "test_2.csv")           
+    test_3 = pd.read_csv(rootDir + "test_3.csv")           
+    test_all = pd.concat([test_1, test_2, test_3])
+    test_all.to_csv(rootDir + "test_all.csv", index = False)
+
+    print("Total processing time: {:.2f} seconds".format(time.time() - startTime))
+
+    return
+        
+        
+        
+# -------------------------------------------------------------------------------------- #
+# Create features dataframe
+# -------------------------------------------------------------------------------------- #
+def create_features_dataframe(sourcePath, sourceType):
     import os
     import scipy.io as sio
     import pandas as pd
     
-    startTime = time.time()
-
     samplingRate = 400
     Nyquist = 0.5 * samplingRate
-    timeWindows = [0, 60000, 120000, 180000, 240000]
-    freqBands = [0, 4, 8, 16, 32, 64, Nyquist]
+    timeWindows = [0, 120000, 240000]
+    freqBands = [0, 4, 8, 32, Nyquist]
     
     numFeatures = 16 * (len(timeWindows)-1) * (len(freqBands)-1)
     
     colNames = ["File"]
     if sourceType == "Train":
         colNames.append("Class")
-        
     for i in range(1,numFeatures+1):
         colNames.append("Feature" + str(i))
 
@@ -38,7 +71,7 @@ def create_features_file(sourcePath, sourceType, destFile):
     fileNames = os.listdir(sourcePath)
     i = 1
     for fileName in fileNames:
-        if (i%50 == 0): print("Processing file {} of {}".format(i, len(fileNames)))
+        if (i%100 == 0): print("    Processing file {} of {}".format(i, len(fileNames)))
         try:
             fileContents = sio.loadmat(sourcePath + fileName, struct_as_record=False)
             fileContents = fileContents["dataStruct"][0,0]
@@ -51,16 +84,17 @@ def create_features_file(sourcePath, sourceType, destFile):
             features.loc[i, "Feature1":colNames[-1]] = generate_features(eegData, samplingRate, timeWindows, freqBands)
             
             i+=1;
-            #if i==100: break
+            #if i==10: break
 
         except ValueError:
-            print("Could not process file: " + fileName)
+            print("    Could not process file: " + fileName)
 
-    features.to_csv(destFile)
+    # Fill missing values with median of respective feature
+    for i in range(1, numFeatures + 1):
+        colName = "Feature" + str(i)
+        features.loc[features[colName].isnull(), colName] = features[colName].dropna().median()
 
-    print("Processing time: {:.2f} seconds".format(time.time() - startTime))
-
-    return
+    return features
 
 
 # -------------------------------------------------------------------------------------- #

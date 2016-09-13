@@ -17,7 +17,7 @@ submission = pd.DataFrame(columns = ["File", "Class"])
 
 for dataSet in dataSets:
     fileName = dataSet["Train File"]
-    srcData = pd.read_csv(rootDir + fileName, index_col=0)
+    srcData = pd.read_csv(rootDir + fileName)
     for i in range(1, numFeatures + 1):
         feature = "Feature" + str(i)
         srcData.loc[srcData[feature].isnull(),feature] = srcData[feature].dropna().median()
@@ -25,7 +25,7 @@ for dataSet in dataSets:
     y_train = srcData.loc[:, "Class"].values
 
     fileName = dataSet["Test File"]
-    srcData = pd.read_csv(rootDir + fileName, index_col=0)
+    srcData = pd.read_csv(rootDir + fileName)
     for i in range(1, numFeatures + 1):
         feature = "Feature" + str(i)
         srcData.loc[srcData[feature].isnull(),feature] = srcData[feature].dropna().median()
@@ -45,6 +45,7 @@ submission.to_csv(rootDir + "submission.csv", index = False)
 # -------------------------------------------------------------------------------------- #
 # Cross Validation
 # -------------------------------------------------------------------------------------- #
+import pandas as pd
 from sklearn import cross_validation
 from sklearn.metrics import confusion_matrix
 from sklearn.ensemble import RandomForestClassifier 
@@ -54,8 +55,8 @@ rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
 numFeatures = 384
 lastFeature = "Feature" + str(numFeatures)
 
-fileName = "train_2.csv"
-trainData = pd.read_csv(rootDir + fileName, index_col=0)
+fileName = "train_all.csv"
+trainData = pd.read_csv(rootDir + fileName)
 
 for i in range(1, numFeatures + 1):
     feature = "Feature" + str(i)
@@ -64,10 +65,10 @@ for i in range(1, numFeatures + 1):
 
 X_train, X_test, y_train, y_test = cross_validation.train_test_split(trainData.loc[:, "Feature1":lastFeature].values,
                                                                      trainData.loc[:, "Class"].values, 
-                                                                     test_size=0.3, 
+                                                                     test_size=0.2, 
                                                                      random_state=31415)
 
-forest = RandomForestClassifier(n_estimators = 100)
+forest = RandomForestClassifier(n_estimators = 30)
 forest = forest.fit(X_train, y_train)
 y_pred = forest.predict(X_test)
 
