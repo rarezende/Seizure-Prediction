@@ -34,7 +34,7 @@ for dataSet in dataSets:
     forest = RandomForestClassifier(n_estimators = 30)
     forest = forest.fit(X_train, y_train)
     y_pred = forest.predict(X_test)
-    partialSub = pd.DataFrame(testData["File"])
+    partialSub = pd.DataFrame(srcData["File"])
     partialSub["Class"] = y_pred
     
     submission = pd.concat([submission, partialSub])
