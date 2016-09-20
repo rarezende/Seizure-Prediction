@@ -23,6 +23,7 @@ def create_all_files():
         destFile = rootDir + dataSet["Output Name"]
         print("Creating file {}".format(dataSet["Output Name"]))
         features = create_features_dataframe(sourcePath, sourceType)
+        #features = create_features_dataframe_parallel(sourcePath, sourceType)
         features.to_csv(destFile, index = False)
 
     print("Creating file {}".format("train_all.csv"))
@@ -42,9 +43,8 @@ def create_all_files():
     print("Total processing time: {:.2f} seconds".format(time.time() - startTime))
 
     return
-        
-        
-        
+
+
 # -------------------------------------------------------------------------------------- #
 # Create features dataframe
 # -------------------------------------------------------------------------------------- #
@@ -55,8 +55,8 @@ def create_features_dataframe(sourcePath, sourceType):
     
     samplingRate = 400
     Nyquist = 0.5 * samplingRate
-    timeWindows = [0, 120000, 240000]
-    freqBands = [0, 4, 8, 32, Nyquist]
+    timeWindows = [0, 48000, 96000, 144000, 192000, 240000]
+    freqBands = [0, 4, 8, 12, 16, 32, 64, 128, Nyquist]
     
     numFeatures = 16 * (len(timeWindows)-1) * (len(freqBands)-1)
     
@@ -84,7 +84,7 @@ def create_features_dataframe(sourcePath, sourceType):
             features.loc[i, "Feature1":colNames[-1]] = generate_features(eegData, samplingRate, timeWindows, freqBands)
             
             i+=1;
-            #if i==10: break
+            if i==101: break
 
         except ValueError:
             print("    Could not process file: " + fileName)
@@ -95,7 +95,6 @@ def create_features_dataframe(sourcePath, sourceType):
         features.loc[features[colName].isnull(), colName] = features[colName].dropna().median()
 
     return features
-
 
 # -------------------------------------------------------------------------------------- #
 # Generate features 
@@ -126,7 +125,102 @@ def generate_features(eegData, samplingRate, timeWindows, freqBands):
     return features
 
 
+##########################################################################################
+# Parallel processing code below
+##########################################################################################
+
+# -------------------------------------------------------------------------------------- #
+# Create features dataframe with parallel processing
+# -------------------------------------------------------------------------------------- #
+def create_features_dataframe_parallel(sourcePath, sourceType):
+    import os
+    import pandas as pd
+    import multiprocessing    
+    
+    fileNames = os.listdir(sourcePath)
+    
+    argList = []
+    for fileName in fileNames[0:100]:
+        argList.append([fileName, sourcePath, sourceType])
+    
+    pool = multiprocessing.Pool()
+    
+    result = pool.starmap_async(generate_features_parallel, argList)
+    features = pd.concat(result.get())
+    pool.close()
+    pool.join()
+    
+    # Fill missing values with median of respective feature
+    if sourceType == "Train":
+        numFeatures = features.shape[1] - 2
+    else:
+        numFeatures = features.shape[1] - 1
+
+    for i in range(1, numFeatures + 1):
+        colName = "Feature" + str(i)
+        features.loc[features[colName].isnull(), colName] = features[colName].dropna().median()
+
+    return features
+
+# -------------------------------------------------------------------------------------- #
+# Generate features 
+# -------------------------------------------------------------------------------------- #
+def generate_features_parallel(fileName, sourcePath, sourceType):
+
+    import scipy.io as sio
+    import scipy.signal as signal
+    import pandas as pd
+    import numpy as np
+    #from IPython.core.debugger import Tracer; dbg_breakpoint = Tracer()
+    
+    samplingRate = 400
+    Nyquist = 0.5 * samplingRate
+    timeWindows = [0, 48000, 96000, 144000, 192000, 240000]
+    freqBands = [0, 4, 8, 12, 16, 32, 64, 128, Nyquist]
+
+    numChannels = 16
+    numWindows = len(timeWindows)-1
+    numBands = len(freqBands)-1
+    numFeatures = numChannels * numWindows * numBands
+    
+    colNames = ["File"]
+    if sourceType == "Train":
+        colNames.append("Class")
+    for i in range(1,numFeatures+1):
+        colNames.append("Feature" + str(i))
+
+    features = pd.DataFrame(columns = colNames)
+
+    try:
+        fileContents = sio.loadmat(sourcePath + fileName, struct_as_record=False)
+        fileContents = fileContents["dataStruct"][0,0]
+        eegData = fileContents.data
+
+        features.loc[1, "File"] = fileName
+        if sourceType == "Train":
+            features.loc[1, "Class"] = fileName.split(".")[0][-1]
+
+        for channel in range(numChannels):
+            for i in range(numWindows):
+                channelData = eegData[timeWindows[i]:timeWindows[i+1],channel]
+                freq, PSD = signal.periodogram(channelData, samplingRate)
+                totalPSD = sum(PSD)
+                for j in range(numBands):
+                    #dbg_breakpoint()
+                    freqFilter = np.logical_and(freq >= freqBands[j], freq < freqBands[j+1])
+                    featName = "Feature" + str(channel*numWindows*numBands + i*numBands + j + 1)
+                    features.loc[1, featName] = sum(PSD[freqFilter])/totalPSD
+                    
+    except ValueError:
+        print("    Could not process file: " + fileName)
+
+    return features
+
+
             
+
+if __name__ == '__main__':
+    create_all_files()
 
 
 
