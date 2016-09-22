@@ -53,19 +53,14 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 
-#rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
-#numFeatures = 128
-rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/Archive/394 Features/"
-numFeatures = 384
-
-lastFeature = "Feature" + str(numFeatures)
+rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
+#rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/Archive/394 Features/"
 
 fileName = "train_all.csv"
 trainData = pd.read_csv(rootDir + fileName)
 
-for i in range(1, numFeatures + 1):
-    feature = "Feature" + str(i)
-    trainData.loc[srcData[feature].isnull(),feature] = srcData[feature].dropna().median()
+numFeatures = trainData.shape[1] - 2
+lastFeature = "Feature" + str(numFeatures)
 
 X_train, X_test, y_train, y_test = cross_validation.train_test_split(trainData.loc[:, "Feature1":lastFeature].values,
                                                                      trainData.loc[:, "Class"].values, 
@@ -84,9 +79,9 @@ X_train, X_test, y_train, y_test = cross_validation.train_test_split(trainData.l
 
 #classifier = RandomForestClassifier(n_estimators = 30, class_weight= "balanced")
 #classifier = svm.SVC(C=0.0000001, gamma=0.01, class_weight= "balanced")
-classifier = GradientBoostingClassifier(n_estimators= 10)
+#classifier = GradientBoostingClassifier(n_estimators= 10)
 
-#classifier = LogisticRegression(C=10, class_weight= "balanced")
+classifier = LogisticRegression(C=10, class_weight= "balanced")
 
 X_train = StandardScaler().fit_transform(X_train)
 classifier.fit(X_train, y_train)
