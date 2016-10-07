@@ -62,7 +62,7 @@ def create_all_files():
     test_all = pd.concat([test_1, test_2, test_3])
     test_all.to_csv(rootDir + "test_all.csv", index = False)
 
-    print("Total processing time: {:.2f} seconds".format(time.time() - startTime))
+    print("Total processing time: {:.2f} minutes".format((time.time()-startTime)/60))
 
     return
 
@@ -73,15 +73,12 @@ def create_all_files():
 def generate_features(fileName, sourcePath, sourceType):
 
     import scipy.io as sio
-    import scipy.signal as signal
     import pandas as pd
-    import numpy as np
     #from IPython.core.debugger import Tracer; dbg_breakpoint = Tracer()
     
     samplingRate = 400
-    Nyquist = 0.5 * samplingRate
-    timeWindows = [0, 60000, 120000, 180000, 240000]
-    freqBands = [0, 4, 8, 12, 32, 64, Nyquist]
+    timeWindows = [24000*time for time in range(11)] # 1 minute clips
+    freqBands = [0.1, 4, 8, 12, 30, 70, 180]
 
     numChannels = 16
     numWindows = len(timeWindows)-1
@@ -96,6 +93,7 @@ def generate_features(fileName, sourcePath, sourceType):
 
     features = pd.DataFrame(columns = colNames)
 
+    #dbg_breakpoint()
     try:
         fileContents = sio.loadmat(sourcePath + fileName, struct_as_record=False)
         fileContents = fileContents["dataStruct"][0,0]
@@ -105,24 +103,51 @@ def generate_features(fileName, sourcePath, sourceType):
         if sourceType == "Train":
             features.loc[1, "Class"] = fileName.split(".")[0][-1]
 
-        for channel in range(numChannels):
-            for i in range(numWindows):
-                channelData = eegData[timeWindows[i]:timeWindows[i+1],channel]
-                freq, PSD = signal.periodogram(channelData, samplingRate)
-                totalPSD = sum(PSD)
-                for j in range(numBands):
-                    #dbg_breakpoint()
-                    freqFilter = np.logical_and(freq >= freqBands[j], freq < freqBands[j+1])
-                    featName = "Feature" + str(channel*numWindows*numBands + i*numBands + j + 1)
-                    features.loc[1, featName] = sum(PSD[freqFilter])/totalPSD
+#        for channel in range(numChannels):
+#            for i in range(numWindows):
+#                channelData = eegData[timeWindows[i]:timeWindows[i+1],channel]
+#                freq, PSD = signal.periodogram(channelData, samplingRate)
+#                totalPSD = sum(PSD)
+#                for j in range(numBands):
+#                    #dbg_breakpoint()
+#                    freqFilter = np.logical_and(freq >= freqBands[j], freq < freqBands[j+1])
+#                    featName = "Feature" + str(channel*numWindows*numBands + i*numBands + j + 1)
+#                    features.loc[1, featName] = sum(PSD[freqFilter])/totalPSD
                     
     except ValueError:
         print("    Could not process file: " + fileName, flush=True)
 
     return features
 
+# -------------------------------------------------------------------------------------- #
+# Generate Shannon entropy features 
+# -------------------------------------------------------------------------------------- #
+def generate_shannon_entropy(eegData, timeWindows, freqBands, samplingRate):
+    import scipy.signal as signal
+    import numpy as np
+
+    numEpochs = len(timeWindows)-1
+    numFreqBands = len(freqBands)-1
+    numChannels = eegData.shape[1]
+    
+    features = np.zeros(numChannels * numEpochs)
+    
+    for channel in range(numChannels):
+        for i in range(numEpochs):
+            epochData = eegData[timeWindows[i]:timeWindows[i+1],channel]
+            freq, PSD = signal.periodogram(epochData, samplingRate)
+            freqBinDensity = np.zeros(numFreqBands)
+            for j in range(numFreqBands):
+                freqFilter = np.logical_and(freq >= freqBands[j], freq < freqBands[j+1])
+                freqBinDensity[j] = PSD[freqFilter].sum()/PSD.sum()
+            
+            features[channel*numEpochs + i] = -freqBinDensity.dot(np.log(freqBinDensity)) 
+            
+    return features
             
 
+    
+    
 if __name__ == '__main__':
     create_all_files()
 
