@@ -45,6 +45,7 @@ def create_all_files():
         for i in range(1, numFeatures + 1):
             colName = "Feature" + str(i)
             features.loc[features[colName].isnull(), colName] = features[colName].dropna().median()
+            features.loc[features[colName]==0, colName] = features[colName].dropna().median()
 
         features.to_csv(destFile, index = False)
 
@@ -165,6 +166,8 @@ def generate_interchannel_correlations(eegData, timeWindows, freqBands, sampling
             channelsPSD[:,channel] = freqBinDensity
         
         freqCorr = pd.DataFrame(data = channelsPSD).corr()
+        freqCorr[np.isnan(freqCorr)] = 0
+        freqCorr[np.isinf(freqCorr)] = 0
         w,v = np.linalg.eig(freqCorr)
         # Real part of the six highest eigenvalues of correlation matrix are included
         features = np.concatenate((features, np.sort(np.real(w))[(numChannels-6):numChannels]))
@@ -173,6 +176,8 @@ def generate_interchannel_correlations(eegData, timeWindows, freqBands, sampling
     for i in range(numEpochs):
         epochData = eegData[timeWindows[i]:timeWindows[i+1],:]
         timeCorr = pd.DataFrame(data = epochData).corr()
+        timeCorr[np.isnan(timeCorr)] = 0
+        timeCorr[np.isinf(timeCorr)] = 0
         w,v = np.linalg.eig(timeCorr)
         # Real part of the sorted eigenvalues of correlation matrix are included
         features = np.concatenate((features, np.sort(np.real(w))))
