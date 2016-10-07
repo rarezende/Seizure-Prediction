@@ -88,12 +88,12 @@ def generate_features(fileName, sourcePath, sourceType):
         eegData = fileContents.data
 
         shannonEntropy = generate_shannon_entropy(eegData, timeWindows, freqBands, samplingRate)
+        channelCorr = generate_interchannel_correlations(eegData, timeWindows, freqBands, samplingRate)
             
     except ValueError:
         print("    Could not process file: " + fileName, flush=True)
 
-    #featVector = np.concatenate((shannonEntropy))
-    featVector = shannonEntropy
+    featVector = np.concatenate((shannonEntropy, channelCorr))
     numFeatures = featVector.shape[0]
     
     colNames = ["File"]
@@ -136,7 +136,50 @@ def generate_shannon_entropy(eegData, timeWindows, freqBands, samplingRate):
             features[channel*numEpochs + i] = -freqBinDensity.dot(np.log2(freqBinDensity)) 
             
     return features
+
+# -------------------------------------------------------------------------------------- #
+# Generate interchannel correlations in the time and frequency domains 
+# -------------------------------------------------------------------------------------- #
+def generate_interchannel_correlations(eegData, timeWindows, freqBands, samplingRate):
+    import scipy.signal as signal
+    import pandas as pd
+    import numpy as np
+
+    numEpochs = len(timeWindows)-1
+    numFreqBands = len(freqBands)-1
+    numChannels = eegData.shape[1]
+    
+    features = []
+    channelsPSD = np.zeros((numFreqBands, numChannels))
+    
+    # Correlations in the frequency domain
+    for i in range(numEpochs):
+        for channel in range(numChannels):
+            epochData = eegData[timeWindows[i]:timeWindows[i+1],channel]
+            freq, PSD = signal.periodogram(epochData, samplingRate)
+            freqBinDensity = np.zeros(numFreqBands)
+            for j in range(numFreqBands):
+                freqFilter = np.logical_and(freq >= freqBands[j], freq < freqBands[j+1])
+                freqBinDensity[j] = PSD[freqFilter].sum()/PSD.sum()
+                
+            channelsPSD[:,channel] = freqBinDensity
+        
+        freqCorr = pd.DataFrame(data = channelsPSD).corr()
+        w,v = np.linalg.eig(freqCorr)
+        # Real part of the six highest eigenvalues of correlation matrix are included
+        features = np.concatenate((features, np.sort(np.real(w))[(numChannels-6):numChannels]))
+        
+    # Correlations in the time domain
+    for i in range(numEpochs):
+        epochData = eegData[timeWindows[i]:timeWindows[i+1],:]
+        timeCorr = pd.DataFrame(data = epochData).corr()
+        w,v = np.linalg.eig(timeCorr)
+        # Real part of the sorted eigenvalues of correlation matrix are included
+        features = np.concatenate((features, np.sort(np.real(w))))
             
+    return features
+
+
     
 # -------------------------------------------------------------------------------------- #
 # Main module function
