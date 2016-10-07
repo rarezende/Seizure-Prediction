@@ -74,24 +74,12 @@ def generate_features(fileName, sourcePath, sourceType):
 
     import scipy.io as sio
     import pandas as pd
+    import numpy as np
     #from IPython.core.debugger import Tracer; dbg_breakpoint = Tracer()
     
     samplingRate = 400
     timeWindows = [24000*time for time in range(11)] # 1 minute clips
     freqBands = [0.1, 4, 8, 12, 30, 70, 180]
-
-    numChannels = 16
-    numWindows = len(timeWindows)-1
-    numBands = len(freqBands)-1
-    numFeatures = numChannels * numWindows * numBands
-    
-    colNames = ["File"]
-    if sourceType == "Train":
-        colNames.append("Class")
-    for i in range(1,numFeatures+1):
-        colNames.append("Feature" + str(i))
-
-    features = pd.DataFrame(columns = colNames)
 
     #dbg_breakpoint()
     try:
@@ -99,23 +87,27 @@ def generate_features(fileName, sourcePath, sourceType):
         fileContents = fileContents["dataStruct"][0,0]
         eegData = fileContents.data
 
-        features.loc[1, "File"] = fileName
-        if sourceType == "Train":
-            features.loc[1, "Class"] = fileName.split(".")[0][-1]
-
-#        for channel in range(numChannels):
-#            for i in range(numWindows):
-#                channelData = eegData[timeWindows[i]:timeWindows[i+1],channel]
-#                freq, PSD = signal.periodogram(channelData, samplingRate)
-#                totalPSD = sum(PSD)
-#                for j in range(numBands):
-#                    #dbg_breakpoint()
-#                    freqFilter = np.logical_and(freq >= freqBands[j], freq < freqBands[j+1])
-#                    featName = "Feature" + str(channel*numWindows*numBands + i*numBands + j + 1)
-#                    features.loc[1, featName] = sum(PSD[freqFilter])/totalPSD
-                    
+        shannonEntropy = generate_shannon_entropy(eegData, timeWindows, freqBands, samplingRate)
+            
     except ValueError:
         print("    Could not process file: " + fileName, flush=True)
+
+    #featVector = np.concatenate((shannonEntropy))
+    featVector = shannonEntropy
+    numFeatures = featVector.shape[0]
+    
+    colNames = ["File"]
+    if sourceType == "Train":
+        colNames.append("Class")
+    for i in range(1,numFeatures+1):
+        colNames.append("Feature" + str(i))
+    features = pd.DataFrame(columns = colNames)
+
+    features.loc[1, "File"] = fileName
+    if sourceType == "Train":
+        features.loc[1, "Class"] = fileName.split(".")[0][-1]
+
+    features.loc[1,"Feature1":] = featVector
 
     return features
 
@@ -141,13 +133,14 @@ def generate_shannon_entropy(eegData, timeWindows, freqBands, samplingRate):
                 freqFilter = np.logical_and(freq >= freqBands[j], freq < freqBands[j+1])
                 freqBinDensity[j] = PSD[freqFilter].sum()/PSD.sum()
             
-            features[channel*numEpochs + i] = -freqBinDensity.dot(np.log(freqBinDensity)) 
+            features[channel*numEpochs + i] = -freqBinDensity.dot(np.log2(freqBinDensity)) 
             
     return features
             
-
     
-    
+# -------------------------------------------------------------------------------------- #
+# Main module function
+# -------------------------------------------------------------------------------------- #
 if __name__ == '__main__':
     create_all_files()
 
