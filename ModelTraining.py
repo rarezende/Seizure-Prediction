@@ -1,48 +1,4 @@
 # -------------------------------------------------------------------------------------- #
-# Create submission file
-# -------------------------------------------------------------------------------------- #
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier 
-
-rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
-
-dataSet1 = {"Train File": "train_1.csv", "Test File": "test_1.csv"}
-dataSet2 = {"Train File": "train_2.csv", "Test File": "test_2.csv"}
-dataSet3 = {"Train File": "train_3.csv", "Test File": "test_3.csv"}
-
-dataSets = [dataSet1, dataSet2, dataSet3]
-numFeatures = 384
-lastFeature = "Feature" + str(numFeatures)
-submission = pd.DataFrame(columns = ["File", "Class"])
-
-for dataSet in dataSets:
-    fileName = dataSet["Train File"]
-    srcData = pd.read_csv(rootDir + fileName)
-    for i in range(1, numFeatures + 1):
-        feature = "Feature" + str(i)
-        srcData.loc[srcData[feature].isnull(),feature] = srcData[feature].dropna().median()
-    X_train = srcData.loc[:, "Feature1":lastFeature].values
-    y_train = srcData.loc[:, "Class"].values
-
-    fileName = dataSet["Test File"]
-    srcData = pd.read_csv(rootDir + fileName)
-    for i in range(1, numFeatures + 1):
-        feature = "Feature" + str(i)
-        srcData.loc[srcData[feature].isnull(),feature] = srcData[feature].dropna().median()
-    X_test  = srcData.loc[:, "Feature1":lastFeature].values
-
-    forest = RandomForestClassifier(n_estimators = 30)
-    forest = forest.fit(X_train, y_train)
-    y_pred = forest.predict(X_test)
-    partialSub = pd.DataFrame(srcData["File"])
-    partialSub["Class"] = y_pred
-    
-    submission = pd.concat([submission, partialSub])
-
-submission.to_csv(rootDir + "submission.csv", index = False)
-
-
-# -------------------------------------------------------------------------------------- #
 # Cross Validation
 # -------------------------------------------------------------------------------------- #
 import pandas as pd
@@ -52,20 +8,20 @@ from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.metrics import roc_auc_score
+from sklearn.pipeline import make_pipeline
+from sklearn.cross_validation import cross_val_score
 
 rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
-#rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/Archive/394 Features/"
 
 fileName = "train_all.csv"
 trainData = pd.read_csv(rootDir + fileName)
 
-numFeatures = trainData.shape[1] - 2
-lastFeature = "Feature" + str(numFeatures)
-
-X_train, X_test, y_train, y_test = cross_validation.train_test_split(trainData.loc[:, "Feature1":lastFeature].values,
+X_train, X_test, y_train, y_test = cross_validation.train_test_split(trainData.loc[:, "Feature1":].values,
                                                                      trainData.loc[:, "Class"].values, 
                                                                      test_size=0.2, 
                                                                      random_state=31415)
+
 
 
 #SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0,
@@ -81,9 +37,15 @@ X_train, X_test, y_train, y_test = cross_validation.train_test_split(trainData.l
 #classifier = svm.SVC(C=0.0000001, gamma=0.01, class_weight= "balanced")
 #classifier = GradientBoostingClassifier(n_estimators= 10)
 
-classifier = LogisticRegression(C=10, class_weight= "balanced")
+X = trainData.loc[:, "Feature1":].values
+y = trainData.loc[:, "Class"].values
 
-X_train = StandardScaler().fit_transform(X_train)
+classifier = LogisticRegression(C=20, class_weight="balanced")
+classifier = make_pipeline(StandardScaler(), classifier)
+scores = cross_val_score(classifier, X, y, cv=5, scoring = "roc_auc")
+print("ROC AUC: {:.2f} (+/- {:.2f})".format(scores.mean(), scores.std()))
+
+
 classifier.fit(X_train, y_train)
 
 
@@ -101,5 +63,35 @@ print("Confusion Matrix Train Set")
 print(metrics.confusion_matrix(y_train, y_pred))
 print(metrics.classification_report(y_train, y_pred))
 
+
+
+
+# -------------------------------------------------------------------------------------- #
+# Create submission file
+# -------------------------------------------------------------------------------------- #
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+
+rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
+trainData = pd.read_csv(rootDir + "train_all.csv")
+testData = pd.read_csv(rootDir + "test_all.csv")
+
+X_train = trainData.loc[:, "Feature1":].values
+y_train = trainData.loc[:, "Class"].values
+
+X_test  = testData.loc[:, "Feature1":].values
+
+classifier = LogisticRegression(C=0.01, class_weight= "balanced")
+
+X_train = StandardScaler().fit_transform(X_train)
+classifier.fit(X_train, y_train)
+
+X_test = StandardScaler().fit_transform(X_test)
+y_pred = classifier.predict(X_test)
+
+submission = pd.DataFrame(testData["File"])
+submission["Class"] = y_pred
+submission.to_csv(rootDir + "submission.csv", index = False)
 
 

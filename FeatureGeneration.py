@@ -91,24 +91,24 @@ def generate_features(fileName, sourcePath, sourceType):
         shannonEntropy = generate_shannon_entropy(eegData, timeWindows, freqBands, samplingRate)
         channelCorr = generate_interchannel_correlations(eegData, timeWindows, freqBands, samplingRate)
             
+        featVector = np.concatenate((shannonEntropy, channelCorr))
+        numFeatures = featVector.shape[0]
+
+        colNames = ["File"]
+        if sourceType == "Train":
+            colNames.append("Class")
+        for i in range(1,numFeatures+1):
+            colNames.append("Feature" + str(i))
+        features = pd.DataFrame(columns = colNames)
+
+        features.loc[1, "File"] = fileName
+        if sourceType == "Train":
+            features.loc[1, "Class"] = fileName.split(".")[0][-1]
+
+        features.loc[1,"Feature1":] = featVector
+
     except ValueError:
         print("    Could not process file: " + fileName, flush=True)
-
-    featVector = np.concatenate((shannonEntropy, channelCorr))
-    numFeatures = featVector.shape[0]
-    
-    colNames = ["File"]
-    if sourceType == "Train":
-        colNames.append("Class")
-    for i in range(1,numFeatures+1):
-        colNames.append("Feature" + str(i))
-    features = pd.DataFrame(columns = colNames)
-
-    features.loc[1, "File"] = fileName
-    if sourceType == "Train":
-        features.loc[1, "Class"] = fileName.split(".")[0][-1]
-
-    features.loc[1,"Feature1":] = featVector
 
     return features
 
