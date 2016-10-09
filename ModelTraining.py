@@ -77,10 +77,29 @@ param_grid = [
 from sklearn import svm
 classifier = svm.SVC()        
 param_grid = [
-  {'C': [0.3, 1, 3], 'kernel': ['linear']},
-  {'C': [0.3, 1, 3], 'kernel': ['rbf'], 'gamma': ['auto', 0.1, 0.01]},
-  {'C': [0.3, 1, 3], 'kernel': ['poly'], 'degree': [2, 3, 5], 'gamma': ['auto', 0.1, 0.01]},
+  {'C': [5, 10, 15], 'kernel': ['rbf'], 'gamma': ['auto', 0.001, 0.003]},
+  {'C': [5, 10, 15], 'kernel': ['poly'], 'degree': [2, 3, 5], 'gamma': ['auto', 0.001, 0.003]},
 ]
+
+# Parameters: {'gamma': 0.001, 'kernel': 'rbf', 'C': 10}
+# ROC AUC Score: 0.60
+# Total processing time: 1.08 minutes
+
+# -------------------------------------------------------------------------------------- #
+# Gradient Boosting Classifier
+
+from sklearn.ensemble import GradientBoostingClassifier
+classifier = GradientBoostingClassifier()
+param_grid = [
+    {'n_estimators':[300, 1000, 3000], 
+     'learning_rate': [0.003, 0.01, 0.03, 0.1], 
+     'min_samples_split': [5, 0.1, 0.01],
+     'max_depth': [2, 3, 4]},
+]
+
+# Parameters: {'n_estimators': 1000}
+# ROC AUC Score: 0.63
+# Total processing time: 10.53 minutes
 
 
 
@@ -89,9 +108,9 @@ param_grid = [
 # Sanity check for the tuned parameters
 # -------------------------------------------------------------------------------------- #
 import pandas as pd
-from sklearn.cross_validation import cross_val_score, train_test_split
+from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
 
 rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/" 
 fileName = "train_all.csv"
@@ -105,10 +124,12 @@ X_train, X_test, y_train, y_test = train_test_split(trainData.loc[:, "Feature1":
 X = trainData.loc[:, "Feature1":].values
 y = trainData.loc[:, "Class"].values
 
-classifier = LogisticRegression(C=0.3, class_weight="balanced")
+# -------- Change model here --------------
+from sklearn.linear_model import LogisticRegression
+classifier = LogisticRegression(C=0.3, class_weight = {0: 0.05, 1: 0.95})
 
 classifier = make_pipeline(StandardScaler(), classifier)
-scores = cross_val_score(classifier, X, y, cv=5, scoring = "roc_auc")
+scores = cross_val_score(classifier, X, y, cv=5, scoring = "roc_auc", n_jobs=-1)
 print("ROC AUC: {:.2f} (+/- {:.2f})".format(scores.mean(), scores.std()))
 
 
@@ -118,7 +139,6 @@ print("ROC AUC: {:.2f} (+/- {:.2f})".format(scores.mean(), scores.std()))
 # -------------------------------------------------------------------------------------- #
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
 
 rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
 trainData = pd.read_csv(rootDir + "train_all.csv")
@@ -129,7 +149,9 @@ y_train = trainData.loc[:, "Class"].values
 
 X_test  = testData.loc[:, "Feature1":].values
 
-classifier = LogisticRegression(C=0.01, class_weight= "balanced")
+# -------- Change model here --------------
+from sklearn.linear_model import LogisticRegression
+classifier = LogisticRegression(C=0.3, class_weight = {0: 0.05, 1: 0.95})
 
 X_train = StandardScaler().fit_transform(X_train)
 classifier.fit(X_train, y_train)
