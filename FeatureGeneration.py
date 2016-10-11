@@ -90,8 +90,9 @@ def generate_features(fileName, sourcePath, sourceType):
 
         shannonEntropy = generate_shannon_entropy(eegData, timeWindows, freqBands, samplingRate)
         channelCorr = generate_interchannel_correlations(eegData, timeWindows, freqBands, samplingRate)
+        specEdge = generate_spectral_edge(eegData, timeWindows, samplingRate)
             
-        featVector = np.concatenate((shannonEntropy, channelCorr))
+        featVector = np.concatenate((shannonEntropy, channelCorr, specEdge))
         numFeatures = featVector.shape[0]
 
         colNames = ["File"]
@@ -184,6 +185,40 @@ def generate_interchannel_correlations(eegData, timeWindows, freqBands, sampling
             
     return features
 
+
+# -------------------------------------------------------------------------------------- #
+# Generate spectral edge frequencies
+# -------------------------------------------------------------------------------------- #
+def generate_spectral_edge(eegData, timeWindows, samplingRate):
+    import scipy.signal as signal
+    import numpy as np
+
+    numEpochs = len(timeWindows)-1
+    numChannels = eegData.shape[1]
+    features = np.zeros(numChannels * numEpochs)
+    
+    # Calculate the spectral edge at 50% power below 40Hz
+    minFreq = 0.1
+    maxFreq = 40 
+    pctPower = 0.50 
+    
+    for channel in range(numChannels):
+        for i in range(numEpochs):
+            epochData = eegData[timeWindows[i]:timeWindows[i+1],channel]
+            freq, PSD = signal.periodogram(epochData, samplingRate)
+            PSD = PSD/PSD.sum()
+            
+            freqFilter = np.logical_and(freq >= minFreq, freq <= maxFreq)
+            targetPower = pctPower*PSD[freqFilter].sum()    
+            cumPSD = np.cumsum(PSD[freqFilter])
+            
+            # The spectral edge frequency corresponds to the frequency at 
+            # the point on the freq axis where cumPSD = targetPower            
+            freqEdge = freq[np.argmin(np.abs(cumPSD - targetPower))]
+            
+            features[channel*numEpochs + i] = freqEdge
+            
+    return features
 
     
 # -------------------------------------------------------------------------------------- #

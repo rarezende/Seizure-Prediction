@@ -81,9 +81,9 @@ param_grid = [
   {'C': [5, 10, 15], 'kernel': ['poly'], 'degree': [2, 3, 5], 'gamma': ['auto', 0.001, 0.003]},
 ]
 
-# Parameters: {'gamma': 0.001, 'kernel': 'rbf', 'C': 10}
+# Parameters: {'C': 10, 'kernel': 'rbf', 'gamma': 0.001}
 # ROC AUC Score: 0.60
-# Total processing time: 1.08 minutes
+# Total processing time: 11.02 minutes
 
 # -------------------------------------------------------------------------------------- #
 # Gradient Boosting Classifier
@@ -91,15 +91,15 @@ param_grid = [
 from sklearn.ensemble import GradientBoostingClassifier
 classifier = GradientBoostingClassifier()
 param_grid = [
-    {'n_estimators':[300, 1000, 3000], 
-     'learning_rate': [0.003, 0.01, 0.03, 0.1], 
-     'min_samples_split': [5, 0.1, 0.01],
-     'max_depth': [2, 3, 4]},
+    {'n_estimators':[1000, 3000], 
+     'learning_rate': [0.003, 0.01], 
+     'min_samples_split': [5, 0.01],
+     'max_depth': [3, 4]},
 ]
 
-# Parameters: {'n_estimators': 1000}
+# Parameters: {'max_depth': 3, 'learning_rate': 0.01, 'min_samples_split': 5, 'n_estimators': 3000}
 # ROC AUC Score: 0.63
-# Total processing time: 10.53 minutes
+# Total processing time: 179.75 minutes
 
 
 
@@ -125,8 +125,8 @@ X = trainData.loc[:, "Feature1":].values
 y = trainData.loc[:, "Class"].values
 
 # -------- Change model here --------------
-from sklearn.linear_model import LogisticRegression
-classifier = LogisticRegression(C=0.3, class_weight = {0: 0.05, 1: 0.95})
+from sklearn.ensemble import GradientBoostingClassifier
+classifier = GradientBoostingClassifier(n_estimators = 3000, max_depth= 3, learning_rate = 0.01, min_samples_split= 5)
 
 classifier = make_pipeline(StandardScaler(), classifier)
 scores = cross_val_score(classifier, X, y, cv=5, scoring = "roc_auc", n_jobs=-1)
@@ -150,8 +150,8 @@ y_train = trainData.loc[:, "Class"].values
 X_test  = testData.loc[:, "Feature1":].values
 
 # -------- Change model here --------------
-from sklearn.linear_model import LogisticRegression
-classifier = LogisticRegression(C=0.3, class_weight = {0: 0.05, 1: 0.95})
+from sklearn.ensemble import GradientBoostingClassifier
+classifier = GradientBoostingClassifier(n_estimators = 3000, max_depth= 3, learning_rate = 0.01, min_samples_split= 5)
 
 X_train = StandardScaler().fit_transform(X_train)
 classifier.fit(X_train, y_train)
