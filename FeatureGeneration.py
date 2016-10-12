@@ -91,8 +91,10 @@ def generate_features(fileName, sourcePath, sourceType):
         shannonEntropy = generate_shannon_entropy(eegData, timeWindows, freqBands, samplingRate)
         channelCorr = generate_interchannel_correlations(eegData, timeWindows, freqBands, samplingRate)
         specEdge = generate_spectral_edge(eegData, timeWindows, samplingRate)
+        distMoments = generate_distrib_moments(eegData, timeWindows)
+        hjorthParams = generate_hjorth_parameters(eegData, timeWindows)
             
-        featVector = np.concatenate((shannonEntropy, channelCorr, specEdge))
+        featVector = np.concatenate((shannonEntropy, channelCorr, specEdge, distMoments, hjorthParams))
         numFeatures = featVector.shape[0]
 
         colNames = ["File"]
@@ -220,7 +222,42 @@ def generate_spectral_edge(eegData, timeWindows, samplingRate):
             
     return features
 
+
+# -------------------------------------------------------------------------------------- #
+# Generate Skewness and Kurtosis of time series
+# -------------------------------------------------------------------------------------- #
+def generate_distrib_moments(eegData, timeWindows):
+    import scipy.stats as stats
+
+    numEpochs = len(timeWindows)-1
+
+    features = []
+    for i in range(numEpochs):
+        epochData = eegData[timeWindows[i]:timeWindows[i+1],:]
+        features = np.concatenate((features, stats.skew(epochData)))
+        features = np.concatenate((features, stats.kurtosis(epochData)))
+
+    return features
+
+# -------------------------------------------------------------------------------------- #
+# Generate Hjorth parameters
+# -------------------------------------------------------------------------------------- #
+def generate_hjorth_parameters(eegData, timeWindows):
+    import numpy as np
+
+    numEpochs = len(timeWindows)-1
     
+    features = []
+    for i in range(numEpochs):
+        epochData = eegData[timeWindows[i]:timeWindows[i+1],:]
+        activity = epochData.var(axis=0)    
+        mobility = np.diff(epochData, axis=0).std(axis=0)/epochData.std(axis=0)
+        complexity = (np.diff(epochData, n=2, axis=0).std(axis=0)/np.diff(epochData, axis=0).std(axis=0))/mobility
+        features = np.concatenate((features, activity, mobility, complexity))
+
+    return features
+
+
 # -------------------------------------------------------------------------------------- #
 # Main module function
 # -------------------------------------------------------------------------------------- #
