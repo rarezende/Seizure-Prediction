@@ -228,6 +228,7 @@ def generate_spectral_edge(eegData, timeWindows, samplingRate):
 # -------------------------------------------------------------------------------------- #
 def generate_distrib_moments(eegData, timeWindows):
     import scipy.stats as stats
+    import numpy as np
 
     numEpochs = len(timeWindows)-1
 
