@@ -50,40 +50,27 @@ param_grid = [
      'class_weight': ['balanced', {0:0.01, 1:0.99}, {0:0.005, 1:0.995}, {0:0.001, 1:0.999}]},
 ]
 
-# Parameters: {'C': 0.003, 'class_weight': {0: 0.001, 1: 0.999}}
-# ROC AUC Score: 0.66
-# Total processing time: 1.45 minutes
+# Parameters: {'class_weight': {0: 0.001, 1: 0.999}, 'C': 0.001}
+# ROC AUC Score: 0.685
+# Total processing time: 6.14 minutes
 
-
-# -------------------------------------------------------------------------------------- #
-# RandomForestClassifier     
-
-from sklearn.ensemble import RandomForestClassifier
-classifier = RandomForestClassifier()
-param_grid = [
-    {'n_estimators':[1, 3, 10, 30, 100], 
-     'max_depth': [None, 5, 10, 15, 30], 
-     'max_leaf_nodes': [None, 5, 10, 15, 30]},
-]
-
-# Parameters: {'n_estimators': 100, 'max_leaf_nodes': None, 'max_depth': 10}
-# ROC AUC Score: 0.60
-# Total processing time: 3.56 minutes
 
 
 # -------------------------------------------------------------------------------------- #
-# Support Vector Machine
+# Lasso Classifier     
 
-from sklearn import svm
-classifier = svm.SVC()        
+from sklearn.linear_model import Lasso
+classifier = Lasso()
 param_grid = [
-  {'C': [5, 10, 15], 'kernel': ['rbf'], 'gamma': ['auto', 0.001, 0.003]},
-  {'C': [5, 10, 15], 'kernel': ['poly'], 'degree': [2, 3, 5], 'gamma': ['auto', 0.001, 0.003]},
+    {'alpha':[0.01, 0.02, 0.03]}
 ]
 
-# Parameters: {'C': 10, 'kernel': 'rbf', 'gamma': 0.001}
-# ROC AUC Score: 0.60
-# Total processing time: 11.02 minutes
+# Parameters: {'alpha': 0.01}
+# ROC AUC Score: 0.675
+# Total processing time: 0.22 minutes
+
+
+
 
 # -------------------------------------------------------------------------------------- #
 # Gradient Boosting Classifier
@@ -108,29 +95,24 @@ param_grid = [
 # Sanity check for the tuned parameters
 # -------------------------------------------------------------------------------------- #
 import pandas as pd
-from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import make_pipeline
 
 rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/" 
 fileName = "train_all.csv"
 trainData = pd.read_csv(rootDir + fileName)
 
-X_train, X_test, y_train, y_test = train_test_split(trainData.loc[:, "Feature1":].values,
-                                                    trainData.loc[:, "Class"].values, 
-                                                    test_size=0.2, 
-                                                    random_state=31415)
-
 X = trainData.loc[:, "Feature1":].values
 y = trainData.loc[:, "Class"].values
 
-# -------- Change model here --------------
-from sklearn.linear_model import LogisticRegression
-classifier = LogisticRegression(C=0.03, class_weight = {0: 0.01, 1: 0.99})
+X = StandardScaler().fit_transform(X)
 
-classifier = make_pipeline(StandardScaler(), classifier)
+# -------- Change model here --------------
+from sklearn.linear_model import Lasso
+classifier = Lasso(alpha = 0.01)
+
 scores = cross_val_score(classifier, X, y, cv=5, scoring = "roc_auc", n_jobs=-1)
-print("ROC AUC: {:.2f} (+/- {:.2f})".format(scores.mean(), scores.std()))
+print("ROC AUC: {:.3f} (+/- {:.3f})".format(scores.mean(), scores.std()))
 
 
 
@@ -150,19 +132,66 @@ y_train = trainData.loc[:, "Class"].values
 X_test  = testData.loc[:, "Feature1":].values
 
 # -------- Change model here --------------
-from sklearn.linear_model import LogisticRegression
-classifier = LogisticRegression(C=0.03, class_weight = {0: 0.01, 1: 0.99})
+# from sklearn.linear_model import LogisticRegression
+# classifier = LogisticRegression(C=0.001, class_weight = {0: 0.001, 1: 0.999})
+from sklearn.ensemble import RandomForestClassifier
+classifier = RandomForestClassifier(n_estimators = 3000, class_weight = 'balanced')
 
 X_train = StandardScaler().fit_transform(X_train)
 classifier.fit(X_train, y_train)
 
 X_test = StandardScaler().fit_transform(X_test)
-y_pred = classifier.predict(X_test)
+y_pred = classifier.predict_proba(X_test)
 
 submission = pd.DataFrame(testData["File"])
-submission["Class"] = y_pred
+submission["Class"] = y_pred[:,1]
 submission.to_csv(rootDir + "submission.csv", index = False)
 
+
+# -------------------------------------------------------------------------------------- #
+# Create submission file using ensemble
+# -------------------------------------------------------------------------------------- #
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+
+rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
+trainData = pd.read_csv(rootDir + "train_all.csv")
+testData = pd.read_csv(rootDir + "test_all.csv")
+
+X_train = trainData.loc[:, "Feature1":].values
+y_train = trainData.loc[:, "Class"].values
+
+X_test  = testData.loc[:, "Feature1":].values
+
+X_train = StandardScaler().fit_transform(X_train)
+
+from sklearn.linear_model import Lasso
+clsLasso = Lasso(alpha = 0.01)
+clsLasso.fit(X_train, y_train)
+y_predLasso = clsLasso.predict(X_train)
+
+from sklearn.linear_model import LogisticRegression
+clsLogit = LogisticRegression(C=0.001, class_weight={0: 0.001, 1: 0.999})
+clsLogit.fit(X_train, y_train)
+y_predLogit = clsLogit.predict_proba(X_train)[:,1]
+
+X_ensemble = np.vstack((y_predLasso, y_predLogit)).T
+
+from sklearn.ensemble import GradientBoostingClassifier
+classifier = GradientBoostingClassifier(n_estimators = 3000, learning_rate = 0.01)
+
+classifier.fit(X_ensemble, y_train)
+
+X_test = StandardScaler().fit_transform(X_test)
+X_testLasso = clsLasso.predict(X_test)
+X_testLogit = clsLogit.predict_proba(X_test)[:,1]
+X_testEnsemble = np.vstack((X_testLasso, X_testLogit)).T
+
+y_pred = classifier.predict_proba(X_testEnsemble)
+
+submission = pd.DataFrame(testData["File"])
+submission["Class"] = y_pred[:,1]
+submission.to_csv(rootDir + "submission.csv", index = False)
 
 
 # -------------------------------------------------------------------------------------- #
@@ -179,6 +208,7 @@ fileContents = sio.loadmat(sourcePath + fileName, struct_as_record=False)
 fileContents = fileContents["dataStruct"][0,0]
 eegData = fileContents.data
 timeWindows = [24000*time for time in range(11)] # 1 minute clips
+samplingRate = 400
 i=0
 channel = 0
 epochData = eegData[timeWindows[i]:timeWindows[i+1],channel]

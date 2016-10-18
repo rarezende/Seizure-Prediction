@@ -1,3 +1,4 @@
 *.ipynb
 /Data
 /Data.zip
+/__pycache__
