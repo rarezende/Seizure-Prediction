@@ -35,6 +35,60 @@ def param_grid_search(classifier, param_grid):
         print("{:0.3f} (+/-{:0.3f}) for {}".format(mean, std, params))
 
 
+        
+# -------------------------------------------------------------------------------------- #
+# Neural Networks
+# -------------------------------------------------------------------------------------- #
+import numpy
+import time
+import pandas as pd
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.wrappers.scikit_learn import KerasClassifier
+from sklearn.model_selection import cross_val_score
+from sklearn.preprocessing import StandardScaler
+
+numpy.random.seed(2016)
+
+startTime = time.time()
+
+rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
+fileName = "train_all.csv"
+trainData = pd.read_csv(rootDir + fileName)
+
+X = trainData.loc[:, "Feature1":].values
+y = trainData.loc[:, "Class"].values
+
+X = StandardScaler().fit_transform(X)
+
+numFeatures = X.shape[1]
+
+# create model
+def create_model():
+    numFeatures = 1560
+    model = Sequential()
+    model.add(Dense(numFeatures, input_dim=numFeatures, init='uniform', activation='relu'))
+    model.add(Dense(numFeatures, init='uniform', activation='relu'))
+    model.add(Dense(numFeatures, init='uniform', activation='relu'))
+    model.add(Dense(1, init='uniform', activation='sigmoid'))
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    return model
+
+'''
+# Fit the model
+model.fit(X, y, nb_epoch=5, batch_size=100)
+'''
+
+classifier = KerasClassifier(build_fn = create_model, nb_epoch=100, batch_size=250, verbose=0)
+
+#classifier.fit(X, y)
+#predictions = classifier.predict_proba(X)
+
+scores = cross_val_score(classifier, X, y, cv=5, scoring = "roc_auc")
+print("ROC AUC: {:.3f} (+/- {:.3f})".format(scores.mean(), scores.std()))
+print("Total processing time: {:.2f} minutes".format((time.time()-startTime)/60))
+
+
 
 # -------------------------------------------------------------------------------------- #
 # Parameter grids
@@ -132,10 +186,10 @@ y_train = trainData.loc[:, "Class"].values
 X_test  = testData.loc[:, "Feature1":].values
 
 # -------- Change model here --------------
-# from sklearn.linear_model import LogisticRegression
-# classifier = LogisticRegression(C=0.001, class_weight = {0: 0.001, 1: 0.999})
-from sklearn.ensemble import RandomForestClassifier
-classifier = RandomForestClassifier(n_estimators = 3000, class_weight = 'balanced')
+from sklearn.linear_model import LogisticRegression
+classifier = LogisticRegression(C=0.001, class_weight = {0: 0.001, 1: 0.999})
+#from sklearn.ensemble import RandomForestClassifier
+#classifier = RandomForestClassifier(n_estimators = 3000, class_weight = 'balanced')
 
 X_train = StandardScaler().fit_transform(X_train)
 classifier.fit(X_train, y_train)
