@@ -88,13 +88,13 @@ def generate_features(fileName, sourcePath, sourceType):
         fileContents = fileContents["dataStruct"][0,0]
         eegData = fileContents.data
 
-        shannonEntropy = generate_shannon_entropy(eegData, timeWindows, freqBands, samplingRate)
+        shannonEntropy =       generate_shannon_entropy(eegData, timeWindows, freqBands, samplingRate)
         shannonEntropyDyadic = generate_shannon_entropy_dyadic(eegData, timeWindows, samplingRate)
-        channelCorr = generate_interchannel_correlations(eegData, timeWindows, freqBands, samplingRate)
-        channelCorrDyadic = generate_dyadicbands_correlations(eegData, timeWindows, samplingRate)
-        specEdge = generate_spectral_edge(eegData, timeWindows, samplingRate)
-        distMoments = generate_distrib_moments(eegData, timeWindows)
-        hjorthParams = generate_hjorth_parameters(eegData, timeWindows)
+        channelCorr =          generate_interchannel_correlations(eegData, timeWindows, freqBands, samplingRate)
+        channelCorrDyadic =    generate_dyadicbands_correlations(eegData, timeWindows, samplingRate)
+        specEdge =             generate_spectral_edge(eegData, timeWindows, samplingRate)
+        distMoments =          generate_distrib_moments(eegData, timeWindows)
+        hjorthParams =         generate_hjorth_parameters(eegData, timeWindows)
             
         featVector = np.concatenate((shannonEntropy, 
                                      shannonEntropyDyadic,
@@ -191,6 +191,8 @@ def generate_interchannel_correlations(eegData, timeWindows, freqBands, sampling
     numChannels = eegData.shape[1]
     
     features = []
+    featTimeCorr = []
+    featFreqCorr = []
     channelsPSD = np.zeros((numFreqBands, numChannels))
     
     # Correlations in the frequency domain
@@ -209,8 +211,10 @@ def generate_interchannel_correlations(eegData, timeWindows, freqBands, sampling
         freqCorr[np.isnan(freqCorr)] = 0
         freqCorr[np.isinf(freqCorr)] = 0
         w,v = np.linalg.eig(freqCorr)
-        # Real part of the six highest eigenvalues of correlation matrix are included
-        features = np.concatenate((features, np.sort(np.real(w))[(numChannels-6):numChannels]))
+        # Real part of the sorted eigenvalues of correlation matrix are included
+        featFreqCorr = np.concatenate((featFreqCorr, np.sort(np.real(w))))
+        
+    features = np.concatenate((features, featFreqCorr.reshape(numEpochs, numChannels).T.ravel()))
         
     # Correlations in the time domain
     for i in range(numEpochs):
@@ -220,7 +224,9 @@ def generate_interchannel_correlations(eegData, timeWindows, freqBands, sampling
         timeCorr[np.isinf(timeCorr)] = 0
         w,v = np.linalg.eig(timeCorr)
         # Real part of the sorted eigenvalues of correlation matrix are included
-        features = np.concatenate((features, np.sort(np.real(w))))
+        featTimeCorr = np.concatenate((featTimeCorr, np.sort(np.real(w))))
+        
+    features = np.concatenate((features, featTimeCorr.reshape(numEpochs, numChannels).T.ravel()))
             
     return features
 
@@ -258,8 +264,10 @@ def generate_dyadicbands_correlations(eegData, timeWindows, samplingRate):
         freqCorr[np.isnan(freqCorr)] = 0
         freqCorr[np.isinf(freqCorr)] = 0
         w,v = np.linalg.eig(freqCorr)
-        # Real part of the six highest eigenvalues of correlation matrix are included
-        features = np.concatenate((features, np.sort(np.real(w))[(numChannels-6):numChannels]))
+        # Real part of the sorted eigenvalues of correlation matrix are included
+        features = np.concatenate((features, np.sort(np.real(w))))
+
+    features = features.reshape(numEpochs, numChannels).T.ravel()
         
     return features
 
@@ -307,12 +315,23 @@ def generate_distrib_moments(eegData, timeWindows):
     import numpy as np
 
     numEpochs = len(timeWindows)-1
+    numChannels = eegData.shape[1]
 
     features = []
+    featSkew = []
+    featKurt = []
+    
     for i in range(numEpochs):
         epochData = eegData[timeWindows[i]:timeWindows[i+1],:]
-        features = np.concatenate((features, stats.skew(epochData)))
-        features = np.concatenate((features, stats.kurtosis(epochData)))
+        featSkew = np.concatenate((featSkew, stats.skew(epochData)))
+    
+    features = np.concatenate((features, featSkew.reshape(numEpochs, numChannels).T.ravel()))
+        
+    for i in range(numEpochs):
+        epochData = eegData[timeWindows[i]:timeWindows[i+1],:]
+        featKurt = np.concatenate((featKurt, stats.kurtosis(epochData)))
+        
+    features = np.concatenate((features, featKurt.reshape(numEpochs, numChannels).T.ravel()))
 
     return features
 
@@ -323,14 +342,34 @@ def generate_hjorth_parameters(eegData, timeWindows):
     import numpy as np
 
     numEpochs = len(timeWindows)-1
+    numChannels = eegData.shape[1]
     
     features = []
+    featActivity = []
+    featMobility = []
+    featComplexity = []
+    
     for i in range(numEpochs):
         epochData = eegData[timeWindows[i]:timeWindows[i+1],:]
-        activity = epochData.var(axis=0)    
+        activity = epochData.var(axis=0)
+        featActivity = np.concatenate((featActivity, activity))
+
+    features = np.concatenate((features, featActivity.reshape(numEpochs, numChannels).T.ravel()))
+        
+    for i in range(numEpochs):
+        epochData = eegData[timeWindows[i]:timeWindows[i+1],:]
+        mobility = np.diff(epochData, axis=0).std(axis=0)/epochData.std(axis=0)
+        featMobility = np.concatenate((featMobility, mobility))
+        
+    features = np.concatenate((features, featMobility.reshape(numEpochs, numChannels).T.ravel()))
+    
+    for i in range(numEpochs):
+        epochData = eegData[timeWindows[i]:timeWindows[i+1],:]
         mobility = np.diff(epochData, axis=0).std(axis=0)/epochData.std(axis=0)
         complexity = (np.diff(epochData, n=2, axis=0).std(axis=0)/np.diff(epochData, axis=0).std(axis=0))/mobility
-        features = np.concatenate((features, activity, mobility, complexity))
+        featComplexity = np.concatenate((featComplexity, complexity))
+        
+    features = np.concatenate((features, featComplexity.reshape(numEpochs, numChannels).T.ravel()))
 
     return features
 
