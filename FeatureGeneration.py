@@ -12,9 +12,9 @@ def create_all_files():
     dataSet1 = {"Type": "Train", "Source": "Data1/train_1/", "Output Name": "train_1.csv"}
     dataSet2 = {"Type": "Train", "Source": "Data2/train_2/", "Output Name": "train_2.csv"}
     dataSet3 = {"Type": "Train", "Source": "Data3/train_3/", "Output Name": "train_3.csv"}
-    dataSet4 = {"Type": "Test" , "Source": "Data1/test_1/" , "Output Name": "test_1.csv"}
-    dataSet5 = {"Type": "Test" , "Source": "Data2/test_2/" , "Output Name": "test_2.csv"}
-    dataSet6 = {"Type": "Test" , "Source": "Data3/test_3/" , "Output Name": "test_3.csv"}
+    dataSet4 = {"Type": "Test" , "Source": "Data1/test_1_new/" , "Output Name": "test_1.csv"}
+    dataSet5 = {"Type": "Test" , "Source": "Data2/test_2_new/" , "Output Name": "test_2.csv"}
+    dataSet6 = {"Type": "Test" , "Source": "Data3/test_3_new/" , "Output Name": "test_3.csv"}
     
     dataSets = [dataSet1, dataSet2, dataSet3, dataSet4, dataSet5, dataSet6]
     rootDir = "C:/Users/Rodrigo/Documents/Data Science/Seizure-Prediction/Data/"
@@ -79,7 +79,7 @@ def generate_features(fileName, sourcePath, sourceType):
     #from IPython.core.debugger import Tracer; dbg_breakpoint = Tracer()
     
     samplingRate = 400
-    timeWindows = [24000*time for time in range(11)] # 1 minute clips
+    timeWindows = [4800*time for time in range(51)] # 12 seconds clips
     freqBands = [0.1, 4, 8, 12, 30, 70, 180]
 
     #dbg_breakpoint()
@@ -157,8 +157,13 @@ def generate_shannon_entropy_dyadic(eegData, timeWindows, samplingRate):
     import scipy.signal as signal
     import numpy as np
 
-    freqBands = [0.0167*(2**n) for n in range(14)]
-    
+    windowSize = len(eegData[timeWindows[0]:timeWindows[1],0])
+    minFreq = samplingRate/windowSize
+    freqNyquist = samplingRate/2
+    numFreqs = int(np.floor(np.log2(freqNyquist/minFreq))+1)
+
+    freqBands = [minFreq*(2**n) for n in range(numFreqs)]
+
     numEpochs = len(timeWindows)-1
     numFreqBands = len(freqBands)-1
     numChannels = eegData.shape[1]
