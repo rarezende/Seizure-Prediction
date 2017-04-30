@@ -70,7 +70,7 @@ X = StandardScaler().fit_transform(X)
 nSamples = X.shape[0]
 nChannels = 16
 nFeatures = 11
-nEpochs = 10
+nEpochs = 50
   
 X = X.reshape(nSamples, nChannels, nFeatures, nEpochs)
 y = np_utils.to_categorical(y)

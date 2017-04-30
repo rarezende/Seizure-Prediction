@@ -79,7 +79,7 @@ def generate_features(fileName, sourcePath, sourceType):
     #from IPython.core.debugger import Tracer; dbg_breakpoint = Tracer()
     
     samplingRate = 400
-    timeWindows = [4800*time for time in range(51)] # 12 seconds clips
+    timeWindows = [24000*time for time in range(11)] # 60 seconds clips
     freqBands = [0.1, 4, 8, 12, 30, 70, 180]
 
     #dbg_breakpoint()
@@ -244,7 +244,12 @@ def generate_dyadicbands_correlations(eegData, timeWindows, samplingRate):
     import pandas as pd
     import numpy as np
 
-    freqBands = [0.0167*(2**n) for n in range(14)]
+    windowSize = len(eegData[timeWindows[0]:timeWindows[1],0])
+    minFreq = samplingRate/windowSize
+    freqNyquist = samplingRate/2
+    numFreqs = int(np.floor(np.log2(freqNyquist/minFreq))+1)
+
+    freqBands = [minFreq*(2**n) for n in range(numFreqs)]
 
     numEpochs = len(timeWindows)-1
     numFreqBands = len(freqBands)-1
